@@ -4,7 +4,7 @@ module SPI_master(
 						input clock, reset_n, start, write_enable,
 						input MISO,
 						input [7:0] dataToTransmit,
-						input [1:0] clock_div,
+						input [2:0] clock_div,
 						
 						output reg sclk, done, ss,
 						output reg MOSI,
@@ -14,22 +14,17 @@ module SPI_master(
 	parameter idle         = 2'b00, //states
 				 send_recieve = 2'b01,
 				 finish       = 2'b11;
-				 
-	parameter div_2 = 2'b00, //clock divider
-				 div_4 = 2'b01,
-				 div_8 = 2'b10;
-	
+				 	
 	reg [1:0] state, next_state;
-	reg [3:0] clock_div_index;
 	reg clear;
 	reg [3:0] count, clock_count;
 	reg [7:0] Sregister;
 	
-	always @(posedge clock or negedge reset_n)
+	always @(posedge sclk or negedge reset_n)
 	begin
 		if (!reset_n)
 		begin
-			state <= idle;
+			state <= finish;
 		end //end reset
 		else
 		begin
@@ -41,19 +36,13 @@ module SPI_master(
 	begin
 		case(state)
 			idle:begin
-				clock_div_index = 2;
 				clear = 1'b1;
 				done = 1'b1;
 				ss = 1'b1;
 				if (start == 1)
 				begin
 					done = 1'b0;
-					case (clock_div)
-								div_2: clock_div_index = 2;
-								div_4: clock_div_index = 4;
-								div_8: clock_div_index = 8;
-								default: clock_div_index = 2;
- 							 endcase
+					ss = 1'b0;
 					next_state = send_recieve;
 				end //end start == 1
 				else
@@ -63,56 +52,57 @@ module SPI_master(
 			end // end idle
 			send_recieve:begin
 							clear = 1'b0;
-							ss = 1'b0;
-							if (write_enable == 0) //is write_enable == 0 and count == 0 then copy data to be transmitted
+							if (write_enable)
 							begin
-								if (count == 0) //copying data to be transmitted into shift register
-								begin
-									Sregister = dataToTransmit;
-								end// end if (count == 0)
-							end// end write_enable == 0
-							else
-							if (count == 8)
-							begin
-								if (write_enable)
+								if (count == 10)
 								begin
 									dataRecieved = Sregister;
-								end
-								next_state = finish;
-							end // end count == 8
+									next_state = finish;
+								end// end count == 8
+								else
+								begin
+									next_state = send_recieve;
+								end// end count != 8
+							end// end write_enable == 1
 							else
 							begin
-								next_state = send_recieve;
-							end //end else (count != 8)
+								if (count == 8)
+								begin
+									next_state = finish;
+								end// end count == 10
+								else
+								begin
+									next_state = send_recieve;
+								end// end count != 10
+							end// end write_enable == 0
 			end //end send_recieve
-			finish:begin
-					done = 1'b1;
-					ss = 1'b1;
+		finish:begin
+					clear = 1'b0;
 					next_state = idle;
-			end //end finish
-		default: next_state = idle;
+				end// end finish
+		default: next_state = finish;
 		endcase
 	end//end always
 	
 	// clock divider block
-	always @(posedge clock or posedge clear)
+	always @(posedge clock or negedge reset_n)
 	begin
-		if (clear)
+		if (!reset_n)
 		begin
 			clock_count <= 0;
 			sclk <= 1;
 		end// end clear 
 		else
 		begin
-			if (!ss)
+			if (clock_count == (clock_div / 2) - 1)
+			begin
+				sclk <= ~sclk;
+				clock_count <= 0;
+			end// end if counter == index for clock division
+			else
 			begin
 				clock_count <= clock_count + 1;
-				if (clock_count == (clock_div_index / 2) - 1)
-				begin
-					sclk <= ~sclk;
-					clock_count <= 0;
-				end// end if counter == index for clock division
-			end// end clock generator block
+			end// end if counter != index for clock division
 		end// end if not clear
 	end// end clock divider block
 	
@@ -124,7 +114,7 @@ module SPI_master(
 		if (clear == 1)
 		begin
 			count <= 0;
-			Sregister <= 8'b1111_1111;
+			Sregister <= dataToTransmit;
 		end //end clear
 		else
 		begin

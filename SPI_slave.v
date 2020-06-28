@@ -21,7 +21,7 @@ module SPI_slave(
 	begin
 		if (!reset_n)
 		begin
-			state <= idle;
+			state <= finish;
 		end //end reset
 		else
 		begin
@@ -47,14 +47,7 @@ module SPI_slave(
 			end// end idle
 			send_recieve:begin
 				clear = 1'b0;
-				if (write_enable == 0)//is write_enable == 0 and count == 0 then copy data to be transmitted
-				begin
-					if (count == 0)//copying data to be transmitted into shift register
-					begin
-						Sregister = dataToTransmit;
-					end// end count = 0
-				end// end if write_enable = 1
-				if (count == 8)
+				if (count == 9)
 				begin
 					if (write_enable)
 					begin
@@ -67,11 +60,11 @@ module SPI_slave(
 					next_state = send_recieve;
 				end //end else (count != 8)
 			end //end send_recieve
-			finish:begin
-					done = 1'b1;
+		finish:begin
+					clear = 1'b0;
 					next_state = idle;
-			end //end finish
-		default: next_state = idle;
+			end// end finish
+		default: next_state = finish;
 		endcase
 	end// end always
 	
@@ -81,7 +74,7 @@ module SPI_slave(
 		if (clear == 1)
 		begin
 			count <= 0;
-			Sregister <= 8'b1111_1111;
+			Sregister <= dataToTransmit;
 		end //end clear
 		else
 		begin
