@@ -26,6 +26,10 @@ module SPI_slave(
 		else
 		begin
 			state <= next_state;
+			if (next_state == finish && write_enable)
+			begin
+				dataRecieved <= Sregister;
+			end
 		end //end state
 	end//end states always block 
 	
@@ -34,7 +38,6 @@ module SPI_slave(
 		case(state)
 			idle:begin
 				clear = 1'b1;
-				done = 1'b1;
 				if (!ss)
 				begin
 					done = 1'b0;
@@ -42,29 +45,32 @@ module SPI_slave(
 				end// end if ss = 0
 				else
 				begin
+					done = 1'b1;
 					next_state = idle;
 				end// end if ss = 1
 			end// end idle
 			send_recieve:begin
 				clear = 1'b0;
+				done = 1'b0;
 				if (count == 9)
 				begin
-					if (write_enable)
-					begin
-						dataRecieved = Sregister;
-					end
 					next_state = finish;
-				end // end count == 8
+				end // end count == 9
 				else
 				begin
 					next_state = send_recieve;
-				end //end else (count != 8)
+				end //end else (count != 9)
 			end //end send_recieve
 		finish:begin
 					clear = 1'b0;
+					done = 1'b0;
 					next_state = idle;
 			end// end finish
-		default: next_state = finish;
+		default:begin
+					clear = 1'b0;
+					done = 1'b0;
+					next_state = finish;
+				end// end default to prevent latches
 		endcase
 	end// end always
 	

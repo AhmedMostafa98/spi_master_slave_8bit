@@ -73,7 +73,7 @@ module SPI_tb;
 		#1 start = 1;
 		dataToTransmit_master = 8'b10101010;
 		
-		#430;
+		#500;
 		start = 0;
 		if (dataToTransmit_master == dataRecieved_slave)
 			$display ("SPI SLAVE RECEIVED SUCCESSFULLY .. PASSED");

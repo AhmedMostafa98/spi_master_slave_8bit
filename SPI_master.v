@@ -29,6 +29,10 @@ module SPI_master(
 		else
 		begin
 			state <= next_state;
+			if (next_state == finish && write_enable)
+			begin
+				dataRecieved <= Sregister;
+			end
 		end //end state
 	end //end states always block 
 
@@ -37,8 +41,6 @@ module SPI_master(
 		case(state)
 			idle:begin
 				clear = 1'b1;
-				done = 1'b1;
-				ss = 1'b1;
 				if (start == 1)
 				begin
 					done = 1'b0;
@@ -47,16 +49,19 @@ module SPI_master(
 				end //end start == 1
 				else
 				begin
+					done = 1'b1;
+					ss = 1'b1;
 					next_state = idle;
 				end
 			end // end idle
 			send_recieve:begin
 							clear = 1'b0;
+							done = 1'b0;
+							ss = 1'b0;
 							if (write_enable)
 							begin
 								if (count == 10)
 								begin
-									dataRecieved = Sregister;
 									next_state = finish;
 								end// end count == 8
 								else
@@ -78,9 +83,16 @@ module SPI_master(
 			end //end send_recieve
 		finish:begin
 					clear = 1'b0;
+					done = 1'b0;
+					ss = 1'b0;
 					next_state = idle;
 				end// end finish
-		default: next_state = finish;
+		default:begin 
+					clear = 1'b0;
+					done = 1'b0;
+					ss = 1'b0;
+					next_state = finish;
+				end// end default to prevent latches
 		endcase
 	end//end always
 	
